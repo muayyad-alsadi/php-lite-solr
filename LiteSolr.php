@@ -15,7 +15,7 @@ class LiteSolr {
   
   public function __construct($prefix='http://localhost:8983/solr/', $mapping=array(), $options=array()) {
       $this->prefix=$prefix;
-      $this->_http=new Http($options);
+      $this->_http=new HttpClient($options);
       $this->ping();
   }
 

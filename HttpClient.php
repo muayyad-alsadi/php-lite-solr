@@ -1,6 +1,15 @@
 <?php 
 
-class Http {
+/**
+ * Simple HTTP client based on cUrl, it can re-use connections
+ * it support all kinds of custom HTTP methods like PUT, PURGE and DELETE
+ * used like this
+ * $http=new HttpClient();
+ * list($info, $content)=$http->get($url, array($key1=>$value1, $key2=>$value2));
+ * list($info, $content)=$http->post($url, array($key1=>$value1, $key2=>$value2));
+ * 
+ **/
+class HttpClient {
   protected $_opt = array(
         CURLOPT_USERAGENT=>'LiteSolr (cUrl)',
         CURLOPT_HEADER => 0,
