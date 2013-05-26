@@ -149,9 +149,10 @@ class HttpClient
      */
     public function __call($method,$args)
     {
-        // FIXME: check length of $args
-        $params=shift($args);
-        $options=shift($args);
+        $params=array_shift($args);
+        if ($params===NULL) $params=array();
+        $options=array_shift($args);
+        if ($options===NULL) $options=array();
         $options[CURLOPT_CUSTOMREQUEST]=strtoupper($method);
         return $this->post($url, $params, $options);
     }
