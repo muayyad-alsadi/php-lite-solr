@@ -35,9 +35,9 @@ class LiteSolr
 {
     public $prefix;
     protected $mapping=array(
-        'ping'=>array('method'=>'get', 'uri'=>'admin/ping'),
+        'ping'=>array('verb'=>'get', 'uri'=>'admin/ping'),
         // NOTE: for older solr versions uri should be update/json
-        'update'=>array('method'=>'post', 'uri'=>'update'),
+        'update'=>array('verb'=>'post', 'uri'=>'update'),
     );
     protected $http;
     
@@ -45,7 +45,7 @@ class LiteSolr
      * Constructor
      * 
      * @param string $prefix  URL prefix to be used
-     * @param array  $mapping maps actions to which HTTP method and URI
+     * @param array  $mapping maps actions to which HTTP verb and URI
      * @param array  $options to be passed to our curl HttpClient eg. user agent
      *
      * @throws Exception "bad reponse" if unable to ping
@@ -125,50 +125,93 @@ class LiteSolr
             $m=$this->mapping[$action];
         }
         $uri=isset($m['uri'])?$m['uri']:str_replace('_', '/', $action);
-        $method=isset($m['method'])?$m['method']:((count($args)<=2)?'get':'post');
-        if ($method=='get') {
+        $verb=isset($m['verb'])?$m['verb']:((count($args)<=2)?'get':'post');
+        if ($verb=='get') {
             $params=array_merge(array($uri), $args);
-            return call_user_func_array(array($this, '_json_get'), $params);
+            return call_user_func_array(array($this, 'jsonGet'), $params);
         } else {
-            $params=array_merge(array($method, $uri), $args);
+            $params=array_merge(array($verb, $uri), $args);
             return call_user_func_array(
-                array($this, '_json_custom_method'), $params
+                array($this, 'jsonCustomVerb'), $params
             );  
         }
     }
     
-    public function _json_get($action, $params=array(), $options=array()) {
+    /**
+     * internal function to call a GET method and decode response as JSON
+     *
+     * @param string $action  the stripped URI to be called
+     * @param mixed  $params  the parameters passed
+     * @param mixed  $options cUrl options
+     *
+     * @return mixed php decoded json response
+     **/
+    public function jsonGet($action, $params=array(), $options=array())
+    {
         // TODO: we might need add 'ts'=>time() to all get params
         // we might also need to add 'indent'=>'true' for debugging
-        list($info,$content_s)=$this->http->get($this->prefix.$action, $params+array('wt'=>'json'), $options);
+        list($info,$content_s)=$this->http->get(
+            $this->prefix.$action,
+            $params+array('wt'=>'json'),
+            $options
+        );
         if ($info['code']!=200 || null===($content=json_decode($content_s, 1))) {
-            var_dump($info);
-            var_dump($content_s);
-            throw new Exception('bad response');
+            throw new Exception("bad response: ".json_encode($info));
         }
         return $content;
     }
     
-    public function _json_post($action, $params, $get_params=array(), $options=array()) {
-        return $this->json_custom_method('post', $action, $params, $get_params, $options);
+    /**
+     * internal function to call a POST method and decode response as JSON
+     *
+     * @param string $action     the stripped URI to be called
+     * @param mixed  $params     the parameters passed
+     * @param mixed  $get_params parameters to be added to query string
+     * @param mixed  $options    cUrl options
+     *
+     * @return mixed php decoded json response
+     **/
+    public function jsonPost($action, $params, $get_params=array(), $options=array())
+    {
+        return $this->jsonCustomVerb(
+            'post', $action, $params, $get_params, $options
+        );
     }
 
-    public function _json_custom_method($method, $action, $params, $get_params=array(), $options=array()) {
-        $options+=array(CURLOPT_HTTPHEADER => array('Content-type: application/json'));
-        if (!is_string($params)) $params=json_encode($params);
+    /**
+     * internal function to call a custom verb and decode response as JSON
+     *
+     * @param string $verb       the verb name
+     * @param string $action     the stripped URI to be called
+     * @param mixed  $params     the parameters passed
+     * @param mixed  $get_params parameters to be added to query string
+     * @param mixed  $options    cUrl options
+     *
+     * @return mixed php decoded json response
+     **/
+    public function jsonCustomVerb(
+        $verb, $action, $params,
+        $get_params=array(), $options=array()
+    ) {
+        $options+=array(
+            CURLOPT_HTTPHEADER => array('Content-type: application/json')
+        );
+        if (!is_string($params)) {
+            $params=json_encode($params);
+        }
         $url=$this->prefix.$action;
         $get_params+=array('wt'=>'json');
-        $url.=(strpos($url, '?') === FALSE ? '?' : '&').http_build_query($get_params);
-        list($info,$content_s)= call_user_func_array( array($this->http, $method), array($url, $params, $options));
+        list($info,$content_s) = call_user_func_array(
+            array($this->http, 'request'),
+            array(strtoupper($verb),
+            $url, $get_params, $params, $options)
+        );
         // TODO: we might need to consider 2xx not just 200
         if ($info['code']!=200 || null===($content=json_decode($content_s, 1))) {
-            var_dump($info);
-            var_dump($content_s);
-            throw new Exception('bad response');
+            throw new Exception('bad response: '.json_encode($info));
         }
         return $content;
         
     }
-
 
 }
