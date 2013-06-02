@@ -98,8 +98,9 @@ class HttpClient
                 CURLOPT_POST => 1,
                 CURLOPT_POSTFIELDS => (is_string($post_params))?
                     $post_params:http_build_query($post_params),
-            ) + $this->opt;
+            );
         }
+        $opt+=$this->opt;
         curl_setopt_array($this->curl, $opt);
         if (! $result = curl_exec($this->curl)) {
             return array(array(
@@ -141,9 +142,6 @@ class HttpClient
     public function __call($verb, $args)
     {
         $url=array_shift($args);
-        if ($params===null) {
-            $params=array();
-        }
         $get_params=array_shift($args);
         if ($get_params===null) {
             $get_params=array();
@@ -157,7 +155,7 @@ class HttpClient
             $options=array();
         }
         return $this->request(
-            strtoupper($verb), $url, $get_params, $params, $options
+            strtoupper($verb), $url, $get_params, $post_params, $options
         );
     }
 
@@ -166,7 +164,7 @@ class HttpClient
      *
      * @return array having two elements info and result
      */
-    public static getRequest()
+    public static function getRequest()
     {
         $http=new HttpClient();
         return call_user_func_array(array($http, 'get'), func_get_args());
@@ -177,7 +175,7 @@ class HttpClient
      *
      * @return array having two elements info and result
      */
-    public static postRequest()
+    public static function postRequest()
     {
         $http=new HttpClient();
         return call_user_func_array(array($http, 'post'), func_get_args());
@@ -188,7 +186,7 @@ class HttpClient
      *
      * @return array having two elements info and result
      */
-    public static customRequest()
+    public static function customRequest()
     {
         $args=func_get_args();
         $verb=array_shift($args);
